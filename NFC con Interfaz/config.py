@@ -7,5 +7,5 @@ semaforo_nfc = threading.Semaphore(1)
 cola_mensajes = Queue()
 
 # Credenciales y Configuración
-USER_DB = {"admin": "1234"}
+USER_DB = {"admin": "1234", "andy": "tonotos67"}
 TITULO_APP = "Acceso Seguro NFC"
