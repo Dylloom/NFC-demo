@@ -3,22 +3,24 @@ from tkinter import messagebox
 import threading
 from auth import verificar_credenciales
 from hardware import simulacion_nfc_thread
-from database import obtener_registros_acceso, obtener_todo_db, registrar_usuario
+from database import (
+    obtener_registros_acceso, obtener_todo_db, registrar_usuario, 
+    obtener_rol, cambiar_rol_usuario, eliminar_usuario_db
+)
 from config import cola_mensajes, TITULO_APP
 
-# Paleta de colores Tono Oscuro (Dark Mode Premium)
-COLOR_BG = "#1E1E2E"        # Fondo principal
-COLOR_CARD = "#252538"      # Tarjetas/Contenedores
-COLOR_TEXT = "#CDD6F4"      # Texto principal (Blanco suave)
-COLOR_SUBTEXT = "#A6ADC8"   # Texto secundario (Gris)
-COLOR_INPUT = "#11111B"     # Fondo de campos de texto
-COLOR_GREEN = "#A6E3A1"     # Botón abrir / Confirmar
-COLOR_RED = "#F38BA8"       # Botón fallar / Alertas
-COLOR_PURPLE = "#CBA6F7"    # Botón Logs
-COLOR_BLUE = "#89B4FA"      # Botón Ver todo DB
+# Paleta de colores Tono Oscuro
+COLOR_BG = "#1E1E2E"        
+COLOR_CARD = "#252538"      
+COLOR_TEXT = "#CDD6F4"      
+COLOR_SUBTEXT = "#A6ADC8"   
+COLOR_INPUT = "#11111B"     
+COLOR_GREEN = "#A6E3A1"     
+COLOR_RED = "#F38BA8"       
+COLOR_PURPLE = "#CBA6F7"    
+COLOR_BLUE = "#89B4FA"      
 
 class BotonRedondeado(tk.Canvas):
-    """Clase personalizada para simular botones redondeados en Modo Oscuro."""
     def __init__(self, parent, text, command, bg, fg, width, height, radius=18, font=("Arial", 10, "bold")):
         self.w = width
         self.h = height
@@ -56,7 +58,7 @@ class InterfazNFC:
     def __init__(self, root):
         self.root = root
         self.root.title(TITULO_APP)
-        self.root.geometry("380x620")
+        self.root.geometry("380x660")
         self.root.configure(bg=COLOR_BG)
         
         self.usuario_actual = None
@@ -69,10 +71,8 @@ class InterfazNFC:
         for widget in self.contenedor.winfo_children():
             widget.destroy()
 
-    # --- PANTALLA 1: LOGIN ---
     def pantalla_login(self):
         self.limpiar_pantalla()
-        
         card = tk.Frame(self.contenedor, bg=COLOR_CARD)
         card.pack(expand=True, fill="both", padx=10, pady=10)
 
@@ -104,10 +104,8 @@ class InterfazNFC:
         else:
             messagebox.showerror("Error", "Credenciales incorrectas.")
 
-    # --- PANTALLA 2: REGISTRO DE USUARIOS ---
     def pantalla_registro(self):
         self.limpiar_pantalla()
-        
         card = tk.Frame(self.contenedor, bg=COLOR_CARD)
         card.pack(expand=True, fill="both", padx=10, pady=10)
 
@@ -137,10 +135,6 @@ class InterfazNFC:
             messagebox.showwarning("Campos Vacíos", "Por favor completa todos los datos.")
             return
 
-        if nuevo_usuario.lower() == "admin":
-            messagebox.showerror("Error", "No puedes registrarte con el nombre 'admin'.")
-            return
-
         exito = registrar_usuario(nuevo_usuario, nueva_pass)
         if exito:
             messagebox.showinfo("Éxito", f"¡Usuario '{nuevo_usuario}' registrado con éxito!")
@@ -148,14 +142,13 @@ class InterfazNFC:
         else:
             messagebox.showerror("Error", "Ese nombre de usuario ya se encuentra registrado.")
 
-    # --- PANTALLA 3: PANEL DE CONTROL NFC ---
     def pantalla_puerta(self):
         self.limpiar_pantalla()
-        
         card = tk.Frame(self.contenedor, bg=COLOR_CARD)
         card.pack(expand=True, fill="both", padx=10, pady=10)
 
-        tk.Label(card, text=f"Usuario activo: {self.usuario_actual}", font=("Arial", 9, "italic"), fg=COLOR_SUBTEXT, bg=COLOR_CARD).pack(pady=10)
+        rol_actual = obtener_rol(self.usuario_actual)
+        tk.Label(card, text=f"Usuario activo: {self.usuario_actual} ({rol_actual.upper()})", font=("Arial", 9, "italic"), fg=COLOR_SUBTEXT, bg=COLOR_CARD).pack(pady=10)
 
         self.label_estado = tk.Label(card, text="Listo para operar", font=("Arial", 13, "bold"), fg=COLOR_SUBTEXT, bg=COLOR_CARD)
         self.label_estado.pack(pady=(15, 5))
@@ -166,39 +159,41 @@ class InterfazNFC:
         self.btn_fallar = BotonRedondeado(card, text="SIMULAR FALLO NFC", command=lambda: self.ejecutar_proceso_nfc(forzar_fallo=True), bg=COLOR_RED, fg=COLOR_INPUT, width=240, height=45, radius=18)
         self.btn_fallar.pack(pady=8)
 
-        # SECCIÓN EXCLUSIVA DE ADMINISTRACIÓN
-        if self.usuario_actual == "admin":
+        # SECCIÓN EXCLUSIVA DE ADMINISTRACIÓN BASADA EN EL ROL DE LA BD
+        if rol_actual == "admin":
             tk.Label(card, text="Herramientas de Admin", font=("Arial", 8, "bold"), fg=COLOR_SUBTEXT, bg=COLOR_CARD).pack(pady=(15,0))
             
             self.btn_admin = BotonRedondeado(card, text="VER REGISTROS ACCESO", command=self.abrir_ventana_logs, bg=COLOR_PURPLE, fg=COLOR_INPUT, width=240, height=35, radius=15)
-            self.btn_admin.pack(pady=5)
+            self.btn_admin.pack(pady=4)
             
             self.btn_admin_todo = BotonRedondeado(card, text="VER BD COMPLETA (TABLAS)", command=self.abrir_ventana_bd_completa, bg=COLOR_BLUE, fg=COLOR_INPUT, width=240, height=35, radius=15)
-            self.btn_admin_todo.pack(pady=5)
+            self.btn_admin_todo.pack(pady=4)
+
+            self.btn_gestion_usr = BotonRedondeado(card, text="GESTIONAR USUARIOS", command=self.abrir_ventana_gestion_usuarios, bg=COLOR_GREEN, fg=COLOR_INPUT, width=240, height=35, radius=15)
+            self.btn_gestion_usr.pack(pady=4)
 
     def ejecutar_proceso_nfc(self, forzar_fallo):
         self.btn_abrir.configurar_estado("disabled")
         self.btn_fallar.configurar_estado("disabled")
-        if self.usuario_actual == "admin":
-            self.btn_admin.configurar_estado("disabled")
-            self.btn_admin_todo.configurar_estado("disabled")
+        if hasattr(self, 'btn_admin'): self.btn_admin.configurar_estado("disabled")
+        if hasattr(self, 'btn_admin_todo'): self.btn_admin_todo.configurar_estado("disabled")
+        if hasattr(self, 'btn_gestion_usr'): self.btn_gestion_usr.configurar_estado("disabled")
         
         hilo_hardware = threading.Thread(target=simulacion_nfc_thread, args=(self.usuario_actual, forzar_fallo))
         hilo_hardware.start()
-        
         self.escuchar_cola()
 
     def escuchar_cola(self):
         try:
             mensaje = cola_mensajes.get_nowait()
-            
             if mensaje == "TERMINADO":
                 self.label_estado.config(text="Listo para operar", fg=COLOR_SUBTEXT)
                 self.btn_abrir.configurar_estado("normal", COLOR_GREEN)
                 self.btn_fallar.configurar_estado("normal", COLOR_RED)
-                if self.usuario_actual == "admin":
-                    self.btn_admin.configurar_estado("normal", COLOR_PURPLE)
-                    self.btn_admin_todo.configurar_estado("normal", COLOR_BLUE)
+                if obtener_rol(self.usuario_actual) == "admin":
+                    if hasattr(self, 'btn_admin'): self.btn_admin.configurar_estado("normal", COLOR_PURPLE)
+                    if hasattr(self, 'btn_admin_todo'): self.btn_admin_todo.configurar_estado("normal", COLOR_BLUE)
+                    if hasattr(self, 'btn_gestion_usr'): self.btn_gestion_usr.configurar_estado("normal", COLOR_GREEN)
                 return 
             
             if "ERROR" in mensaje:
@@ -213,13 +208,12 @@ class InterfazNFC:
     def abrir_ventana_logs(self):
         ventana_logs = tk.Toplevel(self.root)
         ventana_logs.title("Logs de Accesos")
-        ventana_logs.geometry("400x420")
+        ventana_logs.geometry("420x420")
         ventana_logs.configure(bg=COLOR_BG)
         ventana_logs.transient(self.root)
         ventana_logs.grab_set()
 
-        tk.Label(ventana_logs, text="HISTORIAL DE ACCESOS (SQLITE)", font=("Arial", 11, "bold"), fg=COLOR_TEXT, bg=COLOR_BG).pack(pady=15)
-
+        tk.Label(ventana_logs, text="HISTORIAL DE REGISTROS DE ACCESO", font=("Arial", 11, "bold"), fg=COLOR_TEXT, bg=COLOR_BG).pack(pady=15)
         frame_scroll = tk.Frame(ventana_logs, bg=COLOR_BG)
         frame_scroll.pack(expand=True, fill="both", padx=20, pady=5)
 
@@ -231,81 +225,154 @@ class InterfazNFC:
         scroll.config(command=lista.yview)
 
         registros = obtener_registros_acceso()
-        for usuario, fecha in registros:
-            lista.insert("end", f" [{fecha}] OK -> {usuario}")
+        for fecha, tipo, estado in registros:
+            lista.insert("end", f" [{fecha}] {tipo} -> {estado}")
 
         if not registros:
-            lista.insert("end", " No se registran aperturas aún.")
+            lista.insert("end", " No se registran eventos en registro_acceso.")
 
         btn_cerrar = BotonRedondeado(ventana_logs, text="CERRAR VENTANA", command=ventana_logs.destroy, bg=COLOR_SUBTEXT, fg=COLOR_INPUT, width=150, height=35)
         btn_cerrar.pack(pady=15)
 
+    def abrir_ventana_gestion_usuarios(self):
+        """Abre el panel interactivo para otorgar/revocar permisos de Admin y eliminar cuentas."""
+        ventana_gestion = tk.Toplevel(self.root)
+        ventana_gestion.title("Gestión de Usuarios")
+        ventana_gestion.geometry("460x450")
+        ventana_gestion.configure(bg=COLOR_BG)
+        ventana_gestion.transient(self.root)
+        ventana_gestion.grab_set()
+
+        tk.Label(ventana_gestion, text="GESTIÓN DE PERMISOS TEMPORALES", font=("Arial", 11, "bold"), fg=COLOR_TEXT, bg=COLOR_BG).pack(pady=15)
+        
+        frame_scroll = tk.Frame(ventana_gestion, bg=COLOR_BG)
+        frame_scroll.pack(expand=True, fill="both", padx=20, pady=5)
+
+        scroll = tk.Scrollbar(frame_scroll)
+        scroll.pack(side="right", fill="y")
+
+        lista_usr = tk.Listbox(frame_scroll, bg=COLOR_INPUT, fg=COLOR_TEXT, bd=0, highlightthickness=0, font=("Consolas", 10), yscrollcommand=scroll.set)
+        lista_usr.pack(expand=True, fill="both", side="left")
+        scroll.config(command=lista_usr.yview)
+
+        usuarios_cache = []
+
+        def cargar_usuarios():
+            lista_usr.delete(0, "end")
+            usuarios_cache.clear()
+            datos = obtener_todo_db()
+            for row in datos["usuarios"]:
+                uid, nombre, rol, nfc, _ = row
+                usuarios_cache.append((uid, nombre, rol))
+                lista_usr.insert("end", f" ID: {uid:<3} | User: {nombre:<10} | Rol: {rol.upper()}")
+
+        cargar_usuarios()
+
+        def alternar_rol():
+            seleccion = lista_usr.curselection()
+            if not seleccion:
+                messagebox.showwarning("Atención", "Selecciona un usuario de la lista.")
+                return
+            uid, nombre, rol = usuarios_cache[seleccion[0]]
+            
+            if nombre == self.usuario_actual:
+                messagebox.showerror("Error", "No puedes revocar tus propios permisos.")
+                return
+            
+            nuevo_rol = "usuario" if rol == "admin" else "admin"
+            if cambiar_rol_usuario(uid, nuevo_rol):
+                messagebox.showinfo("Éxito", f"Permisos actualizados para '{nombre}' a {nuevo_rol.upper()}.")
+                cargar_usuarios()
+                self.pantalla_puerta() # Refresca pantalla principal por si cambió su propio entorno
+
+        def eliminar_usuario():
+            seleccion = lista_usr.curselection()
+            if not seleccion:
+                messagebox.showwarning("Atención", "Selecciona un usuario de la lista.")
+                return
+            uid, nombre, _ = usuarios_cache[seleccion[0]]
+            
+            if nombre == self.usuario_actual:
+                messagebox.showerror("Error", "No puedes eliminar tu propia cuenta en ejecución.")
+                return
+            
+            if messagebox.askyesno("Confirmar", f"¿Seguro que deseas eliminar permanentemente a '{nombre}'?"):
+                if eliminar_usuario_db(uid):
+                    messagebox.showinfo("Éxito", f"Usuario '{nombre}' eliminado correctamente.")
+                    cargar_usuarios()
+
+        frame_btns = tk.Frame(ventana_gestion, bg=COLOR_BG)
+        frame_btns.pack(pady=20)
+
+        btn_permiso = BotonRedondeado(frame_btns, text="DAR/QUITAR ADMIN", command=alternar_rol, bg=COLOR_BLUE, fg=COLOR_INPUT, width=170, height=35)
+        btn_permiso.pack(side="left", padx=5)
+
+        btn_borrar = BotonRedondeado(frame_btns, text="ELIMINAR USUARIO", command=eliminar_usuario, bg=COLOR_RED, fg=COLOR_INPUT, width=150, height=35)
+        btn_borrar.pack(side="left", padx=5)
+
     def abrir_ventana_bd_completa(self):
-        """Genera un volcado completo estilo terminal de todas las tablas en la BD."""
+        """Genera un volcado estructurado reflejando exactamente las 4 tablas solicitadas."""
         ventana_todo = tk.Toplevel(self.root)
         ventana_todo.title("Inspección Total Base de Datos")
-        ventana_todo.geometry("480x520")
+        ventana_todo.geometry("540x520")
         ventana_todo.configure(bg=COLOR_BG)
         ventana_todo.transient(self.root)
         ventana_todo.grab_set()
 
-        tk.Label(ventana_todo, text="DATABASE RELATIONAL DUMP (ALL TABLES)", font=("Consolas", 11, "bold"), fg=COLOR_BLUE, bg=COLOR_BG).pack(pady=12)
+        tk.Label(ventana_todo, text="DATABASE RELATIONAL DUMP (4 TABLES)", font=("Consolas", 11, "bold"), fg=COLOR_BLUE, bg=COLOR_BG).pack(pady=12)
 
-        # Contenedor para el texto y scrollbar con tamaño controlado
         frame_text = tk.Frame(ventana_todo, bg=COLOR_INPUT)
         frame_text.pack(expand=True, fill="both", padx=20, pady=5)
 
         scroll_y = tk.Scrollbar(frame_text)
         scroll_y.pack(side="right", fill="y")
 
-        # Se añaden parámetros explícitos para forzar el color de las letras (fg=COLOR_TEXT)
-        consola = tk.Text(
-            frame_text, 
-            bg=COLOR_INPUT, 
-            fg=COLOR_TEXT, 
-            insertbackground=COLOR_TEXT,
-            selectbackground=COLOR_BLUE,
-            bd=0, 
-            highlightthickness=0, 
-            font=("Consolas", 10), 
-            yscrollcommand=scroll_y.set, 
-            wrap="none"
-        )
+        consola = tk.Text(frame_text, bg=COLOR_INPUT, fg=COLOR_TEXT, insertbackground=COLOR_TEXT, selectbackground=COLOR_BLUE, bd=0, highlightthickness=0, font=("Consolas", 9), yscrollcommand=scroll_y.set, wrap="none")
         consola.pack(expand=True, fill="both", side="left", padx=10, pady=10)
         scroll_y.config(command=consola.yview)
 
         try:
             datos = obtener_todo_db()
             
-            # --- Formatear Tabla Usuarios ---
+            # 1. Tabla: usuarios
             texto_dump = "=== TABLA: usuarios ===\n"
-            texto_dump += f"{'ID':<5} | {'USUARIO':<12} | {'CONTRASEÑA':<15}\n"
-            texto_dump += "-" * 38 + "\n"
-            for fila in datos["usuarios"]:
-                uid = fila[0] if len(fila) > 0 else "N/A"
-                usr = fila[1] if len(fila) > 1 else "N/A"
-                pwd = fila[2] if len(fila) > 2 else "N/A"
-                texto_dump += f"{uid:<5} | {usr:<12} | {pwd:<15}\n"
+            texto_dump += f"{'ID_Usuario':<12} | {'Nombre':<12} | {'Rol':<10} | {'UID_NFC':<12} | {'Password':<10}\n"
+            texto_dump += "-" * 65 + "\n"
+            for u in datos["usuarios"]:
+                texto_dump += f"{u[0]:<12} | {u[1]:<12} | {u[2]:<10} | {u[3]:<12} | {u[4]:<10}\n"
                 
-            # --- Formatear Tabla Accesos ---
-            texto_dump += "\n=== TABLA: accesos ===\n"
-            texto_dump += f"{'ID':<5} | {'USUARIO':<12} | {'FECHA Y HORA':<20}\n"
-            texto_dump += "-" * 43 + "\n"
+            # 2. Tabla: registro_acceso
+            texto_dump += "\n=== TABLA: registro_acceso ===\n"
+            texto_dump += f"{'ID_log':<8} | {'fecha_hora':<20} | {'tipo_acceso':<12} | {'estado':<18}\n"
+            texto_dump += "-" * 65 + "\n"
             if datos["accesos"]:
-                for fila in datos["accesos"]:
-                    aid = fila[0] if len(fila) > 0 else "N/A"
-                    usr = fila[1] if len(fila) > 1 else "N/A"
-                    fecha = fila[2] if len(fila) > 2 else "N/A"
-                    texto_dump += f"{aid:<5} | {usr:<12} | {fecha:<20}\n"
+                for a in datos["accesos"]:
+                    texto_dump += f"{a[0]:<8} | {a[1]:<20} | {a[2]:<12} | {a[3]:<18}\n"
             else:
-                texto_dump += " (Sin registros de acceso exitosos)\n"
+                texto_dump += " (Sin registros de acceso guardados)\n"
+
+            # 3. Tabla: permisos
+            texto_dump += "\n=== TABLA: permisos ===\n"
+            texto_dump += f"{'id_permisos':<12} | {'fecha_expiracion':<20}\n"
+            texto_dump += "-" * 36 + "\n"
+            if datos["permisos"]:
+                for p in datos["permisos"]:
+                    texto_dump += f"{p[0]:<12} | {p[1]:<20}\n"
+            else:
+                texto_dump += " (No hay registros explícitos de expiración activa)\n"
+
+            # 4. Tabla: app
+            texto_dump += "\n=== TABLA: app ===\n"
+            texto_dump += f"{'id_app':<8} | {'nombre':<15} | {'version':<10}\n"
+            texto_dump += "-" * 36 + "\n"
+            for app in datos["app"]:
+                texto_dump += f"{app[0]:<8} | {app[1]:<15} | {app[2]:<10}\n"
 
         except Exception as e:
-            texto_dump = f"❌ ERROR AL LEER TABLAS:\n{str(e)}"
+            texto_dump = f"❌ ERROR AL LEER ESQUEMA:\n{str(e)}"
 
         consola.insert("1.0", texto_dump)
         consola.config(state="disabled")
 
-        # Botón de cierre anclado al fondo para que no se desplace
         btn_cerrar = BotonRedondeado(ventana_todo, text="CERRAR INSPECTOR", command=ventana_todo.destroy, bg=COLOR_SUBTEXT, fg=COLOR_INPUT, width=160, height=35)
         btn_cerrar.pack(pady=15, side="bottom")
