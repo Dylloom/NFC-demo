@@ -5,7 +5,7 @@ from registro import registrar_acceso
 from database import DB_NAME
 
 def simulacion_nfc_thread(usuario, forzar_fallo=False):
-    """Hilo encargado del hardware. Soporta simulación de denegación de acceso."""
+    """Hilo encargado del hardware. Guarda logs correctos o erróneos en registro_acceso."""
     with semaforo_nfc:
         cola_mensajes.put("Acercar a la puerta")
         time.sleep(1.2)
@@ -13,12 +13,22 @@ def simulacion_nfc_thread(usuario, forzar_fallo=False):
         cola_mensajes.put("Leyendo NFC...")
         time.sleep(1.2)
         
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         if forzar_fallo:
-            # Flujo de Error: No se invoca a registrar_acceso()
             cola_mensajes.put("ERROR: Acceso Denegado")
+            try:
+                conn = sqlite3.connect(DB_NAME)
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO registro_acceso (fecha_hora, tipo_acceso, estado) VALUES (?, ?, ?)", 
+                    (timestamp, "NFC_CARD", f"Denegado ({usuario})")
+                )
+                conn.commit()
+                conn.close()
+            except sqlite3.Error:
+                pass
             time.sleep(2.0)
         else:
-            # Flujo Exitoso
             cola_mensajes.put("Puerta abierta")
             registrar_acceso(usuario) 
             time.sleep(2.0)
@@ -26,15 +36,15 @@ def simulacion_nfc_thread(usuario, forzar_fallo=False):
         cola_mensajes.put("TERMINADO")
 
 def monitor_sistema_thread():
-    """Hilo de monitoreo en segundo plano (Watchdog)."""
+    """Hilo de monitoreo en segundo plano adaptado a la nueva tabla."""
     while True:
         try:
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM accesos")
+            cursor.execute("SELECT COUNT(*) FROM registro_acceso")
             total_logs = cursor.fetchone()[0]
             conn.close()
-            print(f"[MONITOR] Base de datos activa. Registros válidos actuales: {total_logs}")
+            print(f"[MONITOR] Base de datos activa. Eventos en registro_acceso: {total_logs}")
         except sqlite3.Error as e:
             print(f"[MONITOR] Error: {e}")
             
