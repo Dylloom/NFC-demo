@@ -36,7 +36,7 @@ def simulacion_nfc_thread(usuario, forzar_fallo=False):
         cola_mensajes.put("TERMINADO")
 
 def monitor_sistema_thread():
-    """Hilo de monitoreo en segundo plano. ""
+    """Hilo de monitoreo en segundo plano. """
     while True:
         try:
             conn = sqlite3.connect(DB_NAME)
