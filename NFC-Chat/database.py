@@ -4,7 +4,7 @@ import hashlib
 DB_NAME = "seguridad_taller.db"
 
 def generar_hash(password: str) -> str:
-    """Hash SHA-256 utilizando OpenSSL nativo."""
+    """Hash SHA-256 utilizando la librería nativa de OpenSSL."""
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
 def inicializar_base_datos():
@@ -32,15 +32,14 @@ def inicializar_base_datos():
         )
     """)
     
-    # Tabla: bloqueos_usuario (LISTA NEGRA PERSONAL)
+    # Tabla: permisos
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS bloqueos_usuario (
-            usuario_origen TEXT NOT NULL,
-            usuario_bloqueado TEXT NOT NULL,
-            PRIMARY KEY (usuario_origen, usuario_bloqueado)
+        CREATE TABLE IF NOT EXISTS permisos (
+            id_permisos INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha_expiracion TEXT
         )
     """)
-
+    
     # Tabla: app
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS app (
@@ -50,7 +49,16 @@ def inicializar_base_datos():
         )
     """)
     
-    # Usuarios iniciales
+    # Tabla: bloqueos_usuario (LISTA NEGRA PERSONAL)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bloqueos_usuario (
+            usuario_origen TEXT NOT NULL,
+            usuario_bloqueado TEXT NOT NULL,
+            PRIMARY KEY (usuario_origen, usuario_bloqueado)
+        )
+    """)
+    
+    # Cargar usuarios iniciales con Hash SHA-256
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         usuarios_defecto = [
@@ -60,6 +68,10 @@ def inicializar_base_datos():
         ]
         cursor.executemany("INSERT INTO usuarios (Nombre, Rol, UID_NFC, password) VALUES (?, ?, ?, ?)", usuarios_defecto)
         
+    cursor.execute("SELECT COUNT(*) FROM app")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO app (nombre, version) VALUES (?, ?)", ("MiTaller", "2.0.0"))
+
     conn.commit()
     conn.close()
 
@@ -74,12 +86,49 @@ def registrar_usuario(usuario, password):
         conn.commit()
         conn.close()
         return True
+    except sqlite3.Error as e:
+        print(f"Error al registrar usuario: {e}")
+        return False
+
+def obtener_rol(usuario):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT Rol FROM usuarios WHERE Nombre = ?", (usuario,))
+        res = cursor.fetchone()
+        conn.close()
+        return res[0] if res else "usuario"
     except sqlite3.Error:
+        return "usuario"
+
+def cambiar_rol_usuario(id_usuario, nuevo_rol):
+    """Modifica el rol de un usuario (admin <-> usuario)."""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE usuarios SET Rol = ? WHERE ID_Usuario = ?", (nuevo_rol, id_usuario))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error al cambiar rol: {e}")
+        return False
+
+def eliminar_usuario_db(id_usuario):
+    """Elimina permanentemente un usuario por su ID."""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM usuarios WHERE ID_Usuario = ?", (id_usuario,))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error al eliminar usuario: {e}")
         return False
 
 # --- GESTIÓN DE LISTA NEGRA PERSONAL DE CADA USUARIO ---
 def bloquear_usuario_db(usuario_origen, usuario_bloqueado):
-    """Agrega a un usuario a la lista negra personal del usuario_origen."""
     if usuario_origen == usuario_bloqueado:
         return False
     try:
@@ -94,7 +143,6 @@ def bloquear_usuario_db(usuario_origen, usuario_bloqueado):
         return False
 
 def desbloquear_usuario_db(usuario_origen, usuario_bloqueado):
-    """Elimina a un usuario de la lista negra personal."""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -107,7 +155,6 @@ def desbloquear_usuario_db(usuario_origen, usuario_bloqueado):
         return False
 
 def obtener_bloqueados_db(usuario_origen):
-    """Retorna la lista de usuarios bloqueados por el usuario especificado."""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -119,7 +166,6 @@ def obtener_bloqueados_db(usuario_origen):
         return []
 
 def es_bloqueado_db(usuario_origen, usuario_evaluado):
-    """Consulta si usuario_origen tiene bloqueado a usuario_evaluado."""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -132,7 +178,6 @@ def es_bloqueado_db(usuario_origen, usuario_evaluado):
         return False
 
 def obtener_todos_los_usuarios():
-    """Devuelve el listado de nombres de todos los usuarios registrados."""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -142,17 +187,6 @@ def obtener_todos_los_usuarios():
         return filas
     except sqlite3.Error:
         return []
-
-def obtener_rol(usuario):
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("SELECT Rol FROM usuarios WHERE Nombre = ?", (usuario,))
-        res = cursor.fetchone()
-        conn.close()
-        return res[0] if res else "usuario"
-    except sqlite3.Error:
-        return "usuario"
 
 def obtener_registros_acceso():
     conn = sqlite3.connect(DB_NAME)
@@ -169,7 +203,11 @@ def obtener_todo_db():
     usuarios = cursor.fetchall()
     cursor.execute("SELECT ID_log, fecha_hora, tipo_acceso, estado FROM registro_acceso ORDER BY ID_log ASC")
     accesos = cursor.fetchall()
+    cursor.execute("SELECT id_permisos, fecha_expiracion FROM permisos ORDER BY id_permisos ASC")
+    permisos = cursor.fetchall()
+    cursor.execute("SELECT id_app, nombre, version FROM app ORDER BY id_app ASC")
+    app = cursor.fetchall()
     cursor.execute("SELECT usuario_origen, usuario_bloqueado FROM bloqueos_usuario")
     bloqueos = cursor.fetchall()
     conn.close()
-    return {"usuarios": usuarios, "accesos": accesos, "bloqueos": bloqueos}
+    return {"usuarios": usuarios, "accesos": accesos, "permisos": permisos, "app": app, "bloqueos": bloqueos}
