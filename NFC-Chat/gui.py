@@ -13,43 +13,42 @@ from config import cola_mensajes, TITULO_APP, HOST_CHAT, PORT_CHAT
 from chat_client import ClienteChat
 
 # ==========================================
-# PALETA DE COLORES (Dark Mode Premium)
+# PALETA DE COLORES (Dark Dashboard Premium)
 # ==========================================
-COLOR_BG = "#181825"        # Fondo principal ultrasuave
-COLOR_CARD = "#1E1E2E"      # Tarjetas contenedoras
-COLOR_INPUT = "#313244"     # Campos de entrada / Cajas de texto
-COLOR_TEXT = "#CDD6F4"      # Texto principal
-COLOR_SUBTEXT = "#A6ADC8"   # Subtítulos y aclaraciones
-COLOR_GREEN = "#A6E3A1"     # Botones de éxito / Apertura
+COLOR_BG = "#11111B"          # Fondo principal ultrasuave
+COLOR_CARD = "#1E1E2E"        # Tarjetas contenedoras
+COLOR_CARD_BORDER = "#313244" # Bordes de división
+COLOR_INPUT = "#313244"       # Campos de entrada / Cajas de texto
+COLOR_TEXT = "#CDD6F4"        # Texto principal
+COLOR_SUBTEXT = "#A6ADC8"     # Subtítulos y aclaraciones
+COLOR_GREEN = "#A6E3A1"       # Éxito / Apertura
 COLOR_GREEN_HOVER = "#89DCEB"
-COLOR_RED = "#F38BA8"       # Alertas / Errores
+COLOR_RED = "#F38BA8"         # Alertas / Fallos
 COLOR_RED_HOVER = "#EBA0AC"
-COLOR_PURPLE = "#CBA6F7"    # Módulos especiales
-COLOR_BLUE = "#89B4FA"      # Acciones secundarias
+COLOR_PURPLE = "#CBA6F7"      # Módulos especiales / Admin
+COLOR_PURPLE_HOVER = "#B4BEFE"
+COLOR_BLUE = "#89B4FA"        # Acciones secundarias / Chat
 COLOR_BLUE_HOVER = "#74C7EC"
 
 FONT_MAIN = "Segoe UI"
 
 # ==========================================
-# BOTÓN PERSONALIZADO CON HOVER EFFECT
+# BOTÓN REDONDEADO CON EFECTO HOVER
 # ==========================================
 class BotonRedondeado(tk.Canvas):
-    def __init__(self, parent, text, command, bg, fg, width, height, radius=16, font=(FONT_MAIN, 9, "bold"), hover_bg=None):
+    def __init__(self, parent, text, command, bg, fg, width, height, radius=14, font=(FONT_MAIN, 9, "bold"), hover_bg=None):
         self.w = width
         self.h = height
         super().__init__(parent, width=self.w, height=self.h, bg=parent["bg"], highlightthickness=0, cursor="hand2")
         self.command = command
         self.bg = bg
-        self.hover_bg = hover_bg or self._calcular_hover(bg)
+        self.hover_bg = hover_bg or bg
         self.fg = fg
         self.radius = radius
         self.text_str = text
         self.font = font
         self.estado = "normal"
         self.dibujar()
-
-    def _calcular_hover(self, hex_color):
-        return hex_color
 
     def dibujar(self):
         self.delete("all")
@@ -84,34 +83,30 @@ class BotonRedondeado(tk.Canvas):
 
 
 # ==========================================
-# CLASE PRINCIPAL GUI
+# CLASE PRINCIPAL GUI (DASHBOARD)
 # ==========================================
 class InterfazNFC:
     def __init__(self, root):
         self.root = root
         self.root.title(TITULO_APP)
-        self.root.geometry("430x730")
+        self.root.geometry("480x680")
         self.root.configure(bg=COLOR_BG)
         
         self.aplicar_estilos_ttk()
         self.usuario_actual = None
         
         self.contenedor = tk.Frame(self.root, bg=COLOR_BG)
-        self.contenedor.pack(expand=True, fill="both", padx=20, pady=15)
+        self.contenedor.pack(expand=True, fill="both", padx=15, pady=15)
         
         self.pantalla_login()
 
     def aplicar_estilos_ttk(self):
-        """Aplica un tema oscuro consistente a los controles nativos TTK (Tabs y Combobox)."""
+        """Aplica estilos oscuros unificados para los controles nativos de Tkinter (Tabs/Combobox)."""
         style = ttk.Style()
         style.theme_use('default')
-        
-        # Estilo para las pestañas Notebook
         style.configure("TNotebook", background=COLOR_BG, borderwidth=0)
         style.configure("TNotebook.Tab", background=COLOR_CARD, foreground=COLOR_SUBTEXT, padding=[12, 6], font=(FONT_MAIN, 9, "bold"), borderwidth=0)
         style.map("TNotebook.Tab", background=[("selected", COLOR_BLUE)], foreground=[("selected", COLOR_INPUT)])
-        
-        # Estilo para Combobox
         style.configure("TCombobox", fieldbackground=COLOR_INPUT, background=COLOR_CARD, foreground=COLOR_TEXT, arrowcolor=COLOR_TEXT, borderwidth=0)
         style.map("TCombobox", fieldbackground=[("readonly", COLOR_INPUT)], foreground=[("readonly", COLOR_TEXT)])
 
@@ -122,8 +117,8 @@ class InterfazNFC:
     # --- PANTALLA 1: LOGIN ---
     def pantalla_login(self):
         self.limpiar_pantalla()
-        card = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_INPUT, highlightthickness=1)
-        card.pack(expand=True, fill="both", padx=5, pady=5)
+        card = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_CARD_BORDER, highlightthickness=1)
+        card.pack(expand=True, fill="both", padx=20, pady=20)
 
         tk.Label(card, text="🛡️", font=(FONT_MAIN, 42), bg=COLOR_CARD).pack(pady=(25, 5))
         tk.Label(card, text="CONTROL DE ACCESO", font=(FONT_MAIN, 14, "bold"), fg=COLOR_TEXT, bg=COLOR_CARD).pack()
@@ -151,16 +146,16 @@ class InterfazNFC:
             self.usuario_actual = user
             self.pantalla_puerta()
         else:
-            messagebox.showerror("Error de Autenticación", "Las credenciales ingresadas son incorrectas.")
+            messagebox.showerror("Error", "Credenciales incorrectas.")
 
     # --- PANTALLA 2: REGISTRO ---
     def pantalla_registro(self):
         self.limpiar_pantalla()
-        card = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_INPUT, highlightthickness=1)
-        card.pack(expand=True, fill="both", padx=5, pady=5)
+        card = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_CARD_BORDER, highlightthickness=1)
+        card.pack(expand=True, fill="both", padx=20, pady=20)
 
         tk.Label(card, text="📝", font=(FONT_MAIN, 42), bg=COLOR_CARD).pack(pady=(25, 5))
-        tk.Label(card, text="REGISTRO DE USUARIO", font=(FONT_MAIN, 14, "bold"), fg=COLOR_TEXT, bg=COLOR_CARD).pack()
+        tk.Label(card, text="NUEVO REGISTRO", font=(FONT_MAIN, 14, "bold"), fg=COLOR_TEXT, bg=COLOR_CARD).pack()
 
         tk.Label(card, text="Nombre de Usuario", font=(FONT_MAIN, 9, "bold"), fg=COLOR_TEXT, bg=COLOR_CARD).pack(anchor="w", padx=30, pady=(15, 0))
         self.reg_user = tk.Entry(card, font=(FONT_MAIN, 10), justify="center", bd=0, bg=COLOR_INPUT, fg=COLOR_TEXT, insertbackground=COLOR_TEXT)
@@ -181,63 +176,99 @@ class InterfazNFC:
         nueva_pass = self.reg_pass.get().strip()
 
         if not nuevo_usuario or not nueva_pass:
-            messagebox.showwarning("Campos Incompletos", "Por favor completa todos los datos.")
+            messagebox.showwarning("Campos Vacíos", "Por favor completa todos los datos.")
             return
 
         if registrar_usuario(nuevo_usuario, nueva_pass):
-            messagebox.showinfo("Éxito", f"¡Usuario '{nuevo_usuario}' registrado correctamente!")
+            messagebox.showinfo("Éxito", f"¡Usuario '{nuevo_usuario}' registrado!")
             self.pantalla_login()
         else:
-            messagebox.showerror("Error", "El nombre de usuario ya se encuentra registrado.")
+            messagebox.showerror("Error", "El usuario ya existe.")
 
-    # --- PANTALLA 3: PANEL PRINCIPAL ---
+    # --- PANTALLA 3: DASHBOARD PRINCIPAL ---
     def pantalla_puerta(self):
         self.limpiar_pantalla()
-        card = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_INPUT, highlightthickness=1)
-        card.pack(expand=True, fill="both", padx=5, pady=5)
-
         rol_actual = obtener_rol(self.usuario_actual)
-        
-        # User Badge Header
-        header_frame = tk.Frame(card, bg=COLOR_INPUT, padx=10, pady=5)
-        header_frame.pack(fill="x", padx=15, pady=(15, 5))
-        tk.Label(header_frame, text=f"👤 {self.usuario_actual}", font=(FONT_MAIN, 10, "bold"), fg=COLOR_TEXT, bg=COLOR_INPUT).pack(side="left")
-        tk.Label(header_frame, text=f"[{rol_actual.upper()}]", font=(FONT_MAIN, 8, "bold"), fg=COLOR_PURPLE if rol_actual == "admin" else COLOR_BLUE, bg=COLOR_INPUT).pack(side="right")
 
-        # Badge Estado
-        self.frame_estado = tk.Frame(card, bg=COLOR_CARD)
-        self.frame_estado.pack(pady=(10, 10))
+        # -------------------------------------------------------------
+        # HEADER BAR: Perfil de usuario + Botón Salir
+        # -------------------------------------------------------------
+        top_bar = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_CARD_BORDER, highlightthickness=1)
+        top_bar.pack(fill="x", pady=(0, 12), ipady=3)
+
+        user_info = tk.Frame(top_bar, bg=COLOR_CARD)
+        user_info.pack(side="left", padx=12)
+        tk.Label(user_info, text="👤", font=(FONT_MAIN, 11), bg=COLOR_CARD, fg=COLOR_BLUE).pack(side="left", padx=(0, 4))
+        tk.Label(user_info, text=self.usuario_actual, font=(FONT_MAIN, 10, "bold"), fg=COLOR_TEXT, bg=COLOR_CARD).pack(side="left")
         
-        self.label_estado = tk.Label(self.frame_estado, text="🟢  SISTEMA LISTO", font=(FONT_MAIN, 10, "bold"), fg=COLOR_GREEN, bg=COLOR_CARD)
+        badge_bg = COLOR_PURPLE if rol_actual == "admin" else COLOR_BLUE
+        role_badge = tk.Label(top_bar, text=f" {rol_actual.upper()} ", font=(FONT_MAIN, 8, "bold"), fg=COLOR_INPUT, bg=badge_bg)
+        role_badge.pack(side="left", padx=8)
+
+        btn_logout = BotonRedondeado(top_bar, text="SALIR", command=self.pantalla_login, bg=COLOR_INPUT, hover_bg=COLOR_CARD_BORDER, fg=COLOR_RED, width=65, height=28, radius=10, font=(FONT_MAIN, 8, "bold"))
+        btn_logout.pack(side="right", padx=10)
+
+        # -------------------------------------------------------------
+        # TARJETA 1: CONTROL DE ACCESO FÍSICO
+        # -------------------------------------------------------------
+        card_puerta = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_CARD_BORDER, highlightthickness=1)
+        card_puerta.pack(fill="x", pady=(0, 12), ipadx=10, ipady=10)
+
+        tk.Label(card_puerta, text="🚪  CONTROL DE ACCESO FÍSICO", font=(FONT_MAIN, 9, "bold"), fg=COLOR_SUBTEXT, bg=COLOR_CARD).pack(anchor="w", padx=15, pady=(5, 8))
+
+        # Indicador de estado
+        self.frame_estado = tk.Frame(card_puerta, bg=COLOR_INPUT, padx=10, pady=6)
+        self.frame_estado.pack(fill="x", padx=15, pady=(0, 10))
+        self.label_estado = tk.Label(self.frame_estado, text="🟢  SISTEMA LISTO", font=(FONT_MAIN, 10, "bold"), fg=COLOR_GREEN, bg=COLOR_INPUT)
         self.label_estado.pack()
-        
-        # Operaciones NFC
-        self.btn_abrir = BotonRedondeado(card, text="🔓 ABRIR PUERTA", command=lambda: self.ejecutar_proceso_nfc(False), bg=COLOR_GREEN, hover_bg=COLOR_GREEN_HOVER, fg=COLOR_INPUT, width=250, height=38)
-        self.btn_abrir.pack(pady=4)
 
-        self.btn_fallar = BotonRedondeado(card, text="⚠️ SIMULAR FALLO NFC", command=lambda: self.ejecutar_proceso_nfc(True), bg=COLOR_RED, hover_bg=COLOR_RED_HOVER, fg=COLOR_INPUT, width=250, height=38)
-        self.btn_fallar.pack(pady=4)
+        # Botones en 2 columnas (paralelos)
+        grid_puerta = tk.Frame(card_puerta, bg=COLOR_CARD)
+        grid_puerta.pack(fill="x", padx=15)
 
-        # Módulo de Comunicación
-        self.btn_chat = BotonRedondeado(card, text="💬 CHAT Y CONSULTAS", command=self.abrir_ventana_chat, bg=COLOR_BLUE, hover_bg=COLOR_BLUE_HOVER, fg=COLOR_INPUT, width=250, height=38)
-        self.btn_chat.pack(pady=4)
+        self.btn_abrir = BotonRedondeado(grid_puerta, text="🔓 ABRIR PUERTA", command=lambda: self.ejecutar_proceso_nfc(False), bg=COLOR_GREEN, hover_bg=COLOR_GREEN_HOVER, fg=COLOR_INPUT, width=198, height=38)
+        self.btn_abrir.pack(side="left", expand=True, padx=(0, 4))
 
-        # Módulo de Privacidad
-        self.btn_blacklist = BotonRedondeado(card, text="🚫 MI LISTA NEGRA", command=self.abrir_ventana_lista_negra_personal, bg=COLOR_PURPLE, fg=COLOR_INPUT, width=250, height=38)
-        self.btn_blacklist.pack(pady=4)
+        self.btn_fallar = BotonRedondeado(grid_puerta, text="⚠️ FALLO NFC", command=lambda: self.ejecutar_proceso_nfc(True), bg=COLOR_RED, hover_bg=COLOR_RED_HOVER, fg=COLOR_INPUT, width=198, height=38)
+        self.btn_fallar.pack(side="right", expand=True, padx=(4, 0))
 
-        # Opciones exclusivas del Rol Admin
+        # -------------------------------------------------------------
+        # TARJETA 2: SERVICIOS Y COMUNICACIÓN
+        # -------------------------------------------------------------
+        card_servicios = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_CARD_BORDER, highlightthickness=1)
+        card_servicios.pack(fill="x", pady=(0, 12), ipadx=10, ipady=10)
+
+        tk.Label(card_servicios, text="💬  COMUNICACIÓN Y PRIVACIDAD", font=(FONT_MAIN, 9, "bold"), fg=COLOR_SUBTEXT, bg=COLOR_CARD).pack(anchor="w", padx=15, pady=(5, 8))
+
+        grid_servicios = tk.Frame(card_servicios, bg=COLOR_CARD)
+        grid_servicios.pack(fill="x", padx=15)
+
+        self.btn_chat = BotonRedondeado(grid_servicios, text="💬 CHAT EN VIVO", command=self.abrir_ventana_chat, bg=COLOR_BLUE, hover_bg=COLOR_BLUE_HOVER, fg=COLOR_INPUT, width=198, height=38)
+        self.btn_chat.pack(side="left", expand=True, padx=(0, 4))
+
+        self.btn_blacklist = BotonRedondeado(grid_servicios, text="🚫 LISTA NEGRA", command=self.abrir_ventana_lista_negra_personal, bg=COLOR_PURPLE, hover_bg=COLOR_PURPLE_HOVER, fg=COLOR_INPUT, width=198, height=38)
+        self.btn_blacklist.pack(side="right", expand=True, padx=(4, 0))
+
+        # -------------------------------------------------------------
+        # TARJETA 3: HERRAMIENTAS DE ADMINISTRADOR (ADMIN ONLY)
+        # -------------------------------------------------------------
         if rol_actual == "admin":
-            tk.Label(card, text="── Panel de Administración ──", font=(FONT_MAIN, 8, "bold"), fg=COLOR_SUBTEXT, bg=COLOR_CARD).pack(pady=(10, 4))
-            
-            self.btn_admin = BotonRedondeado(card, text="📋 REGISTROS DE ACCESO", command=self.abrir_ventana_logs, bg=COLOR_PURPLE, fg=COLOR_INPUT, width=250, height=34)
-            self.btn_admin.pack(pady=3)
-            
-            self.btn_admin_todo = BotonRedondeado(card, text="🗄️ INSPECCIONAR BD", command=self.abrir_ventana_bd_completa, bg=COLOR_BLUE, hover_bg=COLOR_BLUE_HOVER, fg=COLOR_INPUT, width=250, height=34)
-            self.btn_admin_todo.pack(pady=3)
+            card_admin = tk.Frame(self.contenedor, bg=COLOR_CARD, highlightbackground=COLOR_CARD_BORDER, highlightthickness=1)
+            card_admin.pack(fill="x", pady=(0, 5), ipadx=10, ipady=10)
 
-            self.btn_gestion_usr = BotonRedondeado(card, text="👥 GESTIONAR USUARIOS", command=self.abrir_ventana_gestion_usuarios, bg=COLOR_GREEN, hover_bg=COLOR_GREEN_HOVER, fg=COLOR_INPUT, width=250, height=34)
-            self.btn_gestion_usr.pack(pady=3)
+            tk.Label(card_admin, text="⚙️  PANEL DE ADMINISTRACIÓN", font=(FONT_MAIN, 9, "bold"), fg=COLOR_PURPLE, bg=COLOR_CARD).pack(anchor="w", padx=15, pady=(5, 8))
+
+            grid_admin1 = tk.Frame(card_admin, bg=COLOR_CARD)
+            grid_admin1.pack(fill="x", padx=15, pady=(0, 8))
+
+            self.btn_admin = BotonRedondeado(grid_admin1, text="📋 REGISTROS LOGS", command=self.abrir_ventana_logs, bg=COLOR_PURPLE, hover_bg=COLOR_PURPLE_HOVER, fg=COLOR_INPUT, width=198, height=36)
+            self.btn_admin.pack(side="left", expand=True, padx=(0, 4))
+
+            self.btn_gestion_usr = BotonRedondeado(grid_admin1, text="👥 GESTIÓN USUARIOS", command=self.abrir_ventana_gestion_usuarios, bg=COLOR_GREEN, hover_bg=COLOR_GREEN_HOVER, fg=COLOR_INPUT, width=198, height=36)
+            self.btn_gestion_usr.pack(side="right", expand=True, padx=(4, 0))
+
+            self.btn_admin_todo = BotonRedondeado(card_admin, text="🗄️ INSPECTOR GLOBAL DE BASE DE DATOS", command=self.abrir_ventana_bd_completa, bg=COLOR_BLUE, hover_bg=COLOR_BLUE_HOVER, fg=COLOR_INPUT, width=405, height=36)
+            self.btn_admin_todo.pack(fill="x", padx=15)
 
     def ejecutar_proceso_nfc(self, forzar_fallo):
         self.btn_abrir.configurar_estado("disabled")
@@ -287,7 +318,6 @@ class InterfazNFC:
         tab_privado = tk.Frame(notebook, bg=COLOR_CARD)
         notebook.add(tab_privado, text="👤 Chat 1 a 1")
 
-        # Configuración de Cajas de Texto con Tags Formateados
         def crear_caja_chat(parent):
             txt = tk.Text(parent, bg=COLOR_INPUT, fg=COLOR_TEXT, bd=0, font=(FONT_MAIN, 9), state="disabled", wrap="word", selectbackground=COLOR_BLUE)
             txt.tag_config("system", foreground=COLOR_SUBTEXT, font=(FONT_MAIN, 8, "italic"))
@@ -296,7 +326,7 @@ class InterfazNFC:
             txt.tag_config("text", foreground=COLOR_TEXT, font=(FONT_MAIN, 9))
             return txt
 
-        # Chat General UI
+        # Chat General
         txt_gen = crear_caja_chat(tab_general)
         txt_gen.pack(expand=True, fill="both", padx=10, pady=10)
 
@@ -305,7 +335,7 @@ class InterfazNFC:
         entry_gen = tk.Entry(frame_gen_input, bg=COLOR_INPUT, fg=COLOR_TEXT, insertbackground=COLOR_TEXT, bd=0, font=(FONT_MAIN, 10))
         entry_gen.pack(side="left", fill="x", expand=True, ipady=6, padx=(0, 8))
 
-        # Chat Privado UI
+        # Chat Privado
         frame_top_p = tk.Frame(tab_privado, bg=COLOR_CARD)
         frame_top_p.pack(fill="x", padx=10, pady=(10, 5))
 
@@ -325,7 +355,6 @@ class InterfazNFC:
         entry_priv = tk.Entry(frame_priv_input, bg=COLOR_INPUT, fg=COLOR_TEXT, insertbackground=COLOR_TEXT, bd=0, font=(FONT_MAIN, 10))
         entry_priv.pack(side="left", fill="x", expand=True, ipady=6, padx=(0, 8))
 
-        # Manejo de Recepción con Formateo
         def recibir_mensaje_servidor(raw):
             partes = raw.split("|", 2)
             header = partes[0]
@@ -359,7 +388,7 @@ class InterfazNFC:
         cliente = ClienteChat(HOST_CHAT, PORT_CHAT, self.usuario_actual, recibir_mensaje_servidor)
         ok, error = cliente.conectar()
         if not ok:
-            messagebox.showerror("Error de Red", f"No se pudo conectar al servidor de chat:\n{error}")
+            messagebox.showerror("Error", f"No se pudo conectar al servidor de chat:\n{error}")
             v_chat.destroy()
             return
 
@@ -441,7 +470,7 @@ class InterfazNFC:
         btn_del = BotonRedondeado(v_bl, text="DESBLOQUEAR SELECCIONADO", command=desbloquear_sel, bg=COLOR_GREEN, hover_bg=COLOR_GREEN_HOVER, fg=COLOR_INPUT, width=240, height=35)
         btn_del.pack(pady=(5, 15))
 
-    # --- VENTANA ADMIN 1: LOGS DE ACCESO ---
+    # --- VENTANA ADMIN 1: REGISTROS LOGS ---
     def abrir_ventana_logs(self):
         v_logs = tk.Toplevel(self.root)
         v_logs.title("Logs de Accesos")
